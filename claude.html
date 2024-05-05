@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="https://t3.ftcdn.net/jpg/04/60/06/54/360_F_460065489_gHW9RP5dClJg6EAaexqu5uYxlcX7XVmJ.jpg" type="image/x-icon">
+<title>Chat App</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background-color: #f0f0f0;
+        margin: 0;
+        padding: 0;
+    }
+
+    #system-prompt {
+        width: calc(100% - 160px);
+        padding: 10px;
+        margin: 10px 0;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        box-sizing: border-box;
+    }
+
+    #system-prompt:focus {
+        outline: none;
+        border-color: #007bff;
+    }
+
+    #system-prompt::placeholder {
+        color: #aaa;
+    }
+
+    #system-prompt:focus::placeholder {
+        color: transparent;
+    }
+
+    #send-system-button {
+        width: 150px;
+        padding: 10px;
+        background-color: #007bff;
+        color: #fff;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+
+    #send-system-button:hover {
+        background-color: #0056b3;
+    }
+
+    #chat-container {
+        width: 100%;
+        height: calc(100vh - 150px);
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        overflow-y: scroll;
+        padding: 10px;
+        box-sizing: border-box;
+    }
+
+    .message-container {
+        margin-bottom: 10px;
+        clear: both;
+        overflow: auto;
+    }
+
+    .message {
+        max-width: 70%;
+        padding: 10px;
+        border-radius: 10px;
+        clear: both;
+        word-wrap: break-word;
+    }
+
+    .user-message {
+        background-color: #007bff;
+        color: #fff;
+        float: right;
+    }
+
+    .assistant-message {
+        background-color: #28a745;
+        color: #fff;
+        float: left;
+    }
+
+    .system-message {
+        background-color: #ffc107;
+        color: #000;
+        float: left;
+    }
+
+    #message {
+        width: calc(100% - 160px);
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        margin-right: 10px;
+        resize: none;
+        float: left;
+        box-sizing: border-box;
+    }
+
+    #send-button, #clear-button {
+        width: 80px;
+        padding: 10px;
+        background-color: #007bff;
+        color: #fff;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        float: left;
+        margin-top: 10px;
+        box-sizing: border-box;
+    }
+
+    #send-button:hover, #clear-button:hover {
+        background-color: #0056b3;
+    }
+
+    #clear-button {
+        margin-left: 10px;
+    }
+
+    .generating {
+        color: #ccc;
+    }
+</style>
+</head>
+<body>
+
+<div>
+    <input type="text" id="system-prompt" placeholder="Enter system prompt...">
+    <button id="send-system-button" onclick="sendSystemMessage()">Send System Message</button>
+</div>
+
+<div id="chat-container">
+    <div id="chat-messages"></div>
+</div>
+
+<div style="width: 100%; clear: both;">
+    <textarea id="message" placeholder="Type your message..."></textarea>
+    <button id="send-button" onclick="sendMessage()">Send</button>
+    <button id="clear-button" onclick="clearChat()">Clear Chat</button>
+</div>
+
+<script>
+    var chatHistory = [];
+    var isQuestionAsked = false;
+
+    var chatMessages = document.getElementById('chat-messages');
+    var messageInput = document.getElementById('message');
+    var systemPromptInput = document.getElementById('system-prompt');
+    var sendButton = document.getElementById('send-button');
+    var clearButton = document.getElementById('clear-button');
+
+    enableInput(); // Enable input fields initially
+
+    function sendMessage() {
+        var message = messageInput.value.trim();
+        if (message === '' || isQuestionAsked) {
+            return;
+        }
+
+        var requestData = {
+            model: "claude-3-opus",
+            max_tokens: 100,
+            messages: chatHistory.concat([{
+                role: "user",
+                content: message
+            }])
+        };
+
+        displayMessage("Generating...", "assistant", true); // Display generating message
+        disableInput(); // Disable input fields during fetching
+
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', 'https://opengen-basic-api-1.onrender.com/v1/chat/completions');
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.onload = function () {
+            if (xhr.status === 200) {
+                var response = JSON.parse(xhr.responseText);
+                var aiMessage = response.choices[0].message.content;
+                addMessageToHistory("assistant", aiMessage);
+            } else {
+                addMessageToHistory('assistant', 'Error: ' + xhr.statusText);
+            }
+            enableInput(); // Enable input fields after fetching
+        };
+        xhr.onerror = function () {
+            addMessageToHistory('assistant', 'Error: ' + xhr.statusText);
+            enableInput(); // Enable input fields after fetching
+        };
+        xhr.send(JSON.stringify(requestData));
+
+        addMessageToHistory("user", message);
+        disableInput();
+    }
+
+    function sendSystemMessage() {
+        var prompt = systemPromptInput.value.trim();
+        if (prompt === '') {
+            return;
+        }
+        addMessageToHistory("system", prompt);
+        systemPromptInput.value = '';
+    }
+
+    function addMessageToHistory(role, message) {
+        chatHistory.push({ role: role, content: message });
+        displayChatHistory();
+    }
+
+    function displayChatHistory() {
+        chatMessages.innerHTML = '';
+        chatHistory.forEach(function(messageObject) {
+            displayMessage(messageObject.content, messageObject.role);
+        });
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function displayMessage(message, role, isGenerating = false) {
+        var messageDiv = document.createElement('div');
+        messageDiv.textContent = message;
+        messageDiv.className = 'message ' + role + '-message';
+        if (isGenerating) {
+            messageDiv.classList.add('generating');
+        }
+        chatMessages.appendChild(messageDiv);
+    }
+
+    function clearChat() {
+        chatHistory = [];
+        displayChatHistory();
+    }
+
+    function disableInput() {
+        isQuestionAsked = true;
+        messageInput.value = '';
+        messageInput.disabled = true;
+        systemPromptInput.disabled = true;
+        sendButton.disabled = true;
+        clearButton.disabled = true;
+    }
+
+    function enableInput() {
+        isQuestionAsked = false;
+        messageInput.disabled = false;
+        systemPromptInput.disabled = false;
+        sendButton.disabled = false;
+        clearButton.disabled = false;
+    }
+</script>
+
+</body>
+</html>
