@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="https://t3.ftcdn.net/jpg/04/60/06/54/360_F_460065489_gHW9RP5dClJg6EAaexqu5uYxlcX7XVmJ.jpg" type="image/x-icon">
+    <title>AI Image Generation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+            background-color: #f2f2f2;
+        }
+        #container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        input[type="text"] {
+            width: calc(100% - 40px);
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            outline: none;
+        }
+        #generateButton {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        #generateButton:hover {
+            background-color: #45a049;
+        }
+        #generatedImage {
+            max-width: 100%;
+            margin-top: 30px;
+            border-radius: 8px;
+            box-shadow: 0px 0px 10px 0px rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <h1>AI Image Generation</h1>
+        <input type="text" id="promptInput" placeholder="Enter your prompt...">
+        <br>
+        <button id="generateButton" onclick="generateImage()">Generate Image</button>
+        <br>
+        <img id="generatedImage" src="" alt="Generated Image">
+    </div>
+    
+    <script>
+        function generateImage() {
+            const promptText = document.getElementById("promptInput").value;
+            const requestData = {
+                prompt: promptText
+            };
+
+            fetchImage(requestData);
+        }
+
+        function fetchImage(requestData) {
+            fetch("https://opengen-basic-api-1.onrender.com/v1/Image/generations", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(requestData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                const imageUrl = data.data.image_url;
+                document.getElementById("generatedImage").src = imageUrl;
+            })
+            .catch(error => {
+                console.error("Error:", error);
+                // Retry after a delay
+                setTimeout(() => fetchImage(requestData), 2000); // Retry after 2 seconds
+            });
+        }
+    </script>
+</body>
+</html>
